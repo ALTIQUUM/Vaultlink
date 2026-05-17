@@ -1,6 +1,8 @@
-import { createContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 
-export const NotificationContext = createContext({ count: 0, setCount: (_count: number) => undefined });
+type NotificationState = { count: number; setCount: Dispatch<SetStateAction<number>> };
+
+export const NotificationContext = createContext<NotificationState>({ count: 0, setCount: () => undefined });
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [count, setCount] = useState(0);

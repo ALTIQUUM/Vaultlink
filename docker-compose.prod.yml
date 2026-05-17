@@ -1,0 +1,49 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      target: production
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      REDIS_URL_FILE: /run/secrets/redis_url
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+    secrets:
+      - database_url
+      - redis_url
+      - jwt_secret
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+      target: production
+    command: celery -A app.tasks.celery_app.celery_app worker --beat --loglevel=INFO
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL_FILE: /run/secrets/database_url
+      REDIS_URL_FILE: /run/secrets/redis_url
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+    secrets:
+      - database_url
+      - redis_url
+      - jwt_secret
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      target: production
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+secrets:
+  database_url:
+    file: ./secrets/database_url.txt
+  redis_url:
+    file: ./secrets/redis_url.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt

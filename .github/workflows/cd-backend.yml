@@ -1,0 +1,17 @@
+name: Deploy Backend
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["backend/**", "docker-compose.prod.yml"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: railwayapp/railway-deploy@v3
+        with:
+          service: vaultlink-backend
+          token: ${{ secrets.RAILWAY_TOKEN }}

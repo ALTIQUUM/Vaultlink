@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: vaultlink
+          POSTGRES_USER: vaultlink
+          POSTGRES_PASSWORD: vaultlink_dev_password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r backend/requirements.txt
+      - run: black --check backend/app backend/tests && isort --check-only backend/app backend/tests && flake8 backend/app backend/tests
+      - run: cd backend && pytest
+        env:
+          DATABASE_URL: postgresql+psycopg://vaultlink:vaultlink_dev_password@localhost:5432/vaultlink
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET: ci-secret-ci-secret-ci-secret-ci-secret
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: cd frontend && npm install
+      - run: cd frontend && npm run build

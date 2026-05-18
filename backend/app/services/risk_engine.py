@@ -8,6 +8,12 @@ from app.schemas.risk import CorrelationCell, PortfolioRisk, RiskMetric
 
 
 class RiskEngine:
+    @staticmethod
+    def _decimal(value: float) -> Decimal:
+        if not np.isfinite(value):
+            value = 0.0
+        return Decimal(str(round(float(value), 4)))
+
     def analyze(self, tickers: list[str]) -> PortfolioRisk:
         symbols = sorted(set(tickers)) or ["SPY"]
         prices = yf.download(
@@ -67,25 +73,16 @@ class RiskEngine:
         alpha = annual_return - beta * float(b.mean() * 252)
         cumulative = (1 + r).cumprod()
         drawdown = cumulative / cumulative.cummax() - 1
+        sharpe = r.mean() / r.std() * np.sqrt(252) if r.std() else 0.0
+        sortino = (
+            r.mean() / downside.std() * np.sqrt(252)
+            if len(downside) and downside.std()
+            else 0.0
+        )
         return RiskMetric(
             ticker=ticker,
-            sharpe_ratio=Decimal(
-                str(
-                    round(float(r.mean() / r.std() * np.sqrt(252)) if r.std() else 0, 4)
-                )
-            ),
-            sortino_ratio=Decimal(
-                str(
-                    round(
-                        (
-                            float(r.mean() / downside.std() * np.sqrt(252))
-                            if len(downside) and downside.std()
-                            else 0
-                        ),
-                        4,
-                    )
-                )
-            ),
+            sharpe_ratio=self._decimal(float(sharpe)),
+            sortino_ratio=self._decimal(float(sortino)),
             volatility_30d=Decimal(
                 str(round(float(r.tail(30).std() * np.sqrt(252)), 4))
             ),

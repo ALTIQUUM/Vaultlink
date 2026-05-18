@@ -51,55 +51,53 @@ Key design decisions:
 
 ```mermaid
 graph TB
-    subgraph Client ["Client Layer"]
-        USER[User Browser]
+    USER([Browser Client])
+
+    subgraph VERCEL [Vercel Edge Network]
+        direction TB
+        FE[React 18 + Vite SPA]
+        AXIOS[Axios HTTP Client]
+        FE --> AXIOS
     end
 
-    subgraph Frontend ["Frontend - React + Vite - Vercel"]
-        FE[React SPA]
-        FE_AX[Axios HTTP Client]
-        FE --> FE_AX
+    subgraph DOCKER [Docker Compose Orchestrated Services]
+        direction TB
+
+        subgraph API_LAYER [Backend Node.js + Express]
+            direction LR
+            GW[API Gateway :5000]
+            AUTH[JWT Auth Middleware]
+            VAL[Ticker Validator]
+            CTRL[Controllers]
+            SVC[Service Layer]
+            GW --> AUTH --> VAL --> CTRL --> SVC
+        end
+
+        subgraph DB_LAYER [Data Layer]
+            DB[(Primary Database)]
+        end
+
+        subgraph OBS_LAYER [Observability Stack]
+            direction LR
+            PROM[Prometheus :9090]
+            GRAF[Grafana :3000]
+            PROM --> GRAF
+        end
     end
 
-    subgraph CI ["CI/CD - GitHub Actions"]
-        GHA_BE[Backend Test and Build]
-        GHA_FE[Frontend Deploy to Vercel]
+    subgraph EXTERNAL [External Services]
+        STOCK[Stock Market Data API]
+        GH[GitHub Actions CI/CD]
     end
 
-    subgraph Backend ["Backend API - Node.js + Express"]
-        GW[API Gateway]
-        AUTH[JWT Middleware]
-        VAL[Ticker Validator]
-        CTRL[Controllers]
-        SVC[Services]
-        GW --> AUTH --> VAL --> CTRL --> SVC
-    end
-
-    subgraph External ["External Data"]
-        STOCK_API[Stock Market API]
-    end
-
-    subgraph Data ["Database"]
-        DB[(Primary Database)]
-    end
-
-    subgraph Monitoring ["Monitoring Stack - Docker"]
-        GRAF[Grafana Dashboard]
-        PROM[Prometheus Metrics]
-        GRAF --> PROM
-    end
-
-    subgraph Docker ["Docker Compose Orchestration"]
-        Backend
-        Data
-        Monitoring
-    end
-
-    USER --> Frontend
-    FE_AX -->|REST API| GW
-    SVC -->|Fetch ticker data| STOCK_API
-    SVC --> DB
-    Backend -->|Expose metrics| PROM
+    USER -->|HTTPS| FE
+    AXIOS -->|REST /api/v1| GW
+    SVC -->|Fetch enriched quotes| STOCK
+    SVC -->|Read and Write| DB
+    DB -->|Query results| SVC
+    API_LAYER -->|Scrape /metrics endpoint| PROM
+    GH -->|Deploy on push to main| VERCEL
+    GH -->|Build and run tests| DOCKER
 ```
 
 ---
@@ -110,30 +108,41 @@ graph TB
 sequenceDiagram
     actor User
     participant FE as React Frontend
-    participant API as Backend API
+    participant GW as API Gateway
+    participant AUTH as JWT Middleware
     participant VAL as Ticker Validator
     participant SVC as Stock Service
-    participant EXT as Stock Market API
+    participant EXT as Market Data API
     participant DB as Database
+    participant PROM as Prometheus
 
-    User->>FE: Adds ticker symbol to watchlist
-    FE->>API: POST /api/v1/watchlist with symbol
-    API->>VAL: Validate ticker format and existence
-    VAL-->>API: Valid
+    User->>FE: Enter ticker symbol e.g. AAPL
+    FE->>GW: POST /api/v1/watchlist with symbol AAPL
+    GW->>AUTH: Verify Authorization Bearer token
+    AUTH-->>GW: Decoded userId
 
-    API->>DB: Check if ticker already in user watchlist
-    DB-->>API: Not found
+    GW->>VAL: Validate symbol format and whitelist
+    alt Symbol invalid
+        VAL-->>GW: 400 Bad Request
+        GW-->>FE: Error - invalid ticker symbol
+    else Symbol valid
+        VAL-->>GW: Passed
+    end
 
-    API->>SVC: Fetch current price and metadata
-    SVC->>EXT: GET market data for symbol
-    EXT-->>SVC: Price, volume, change percent
-    SVC-->>API: Enriched ticker object
+    GW->>DB: SELECT watchlist WHERE userId AND symbol = AAPL
+    DB-->>GW: Row count = 0, not a duplicate
 
-    API->>DB: INSERT ticker into user watchlist
-    DB-->>API: Saved
+    GW->>SVC: enrichTicker AAPL
+    SVC->>EXT: GET /quote?symbol=AAPL
+    EXT-->>SVC: price, volume, change, marketCap
+    SVC-->>GW: Enriched ticker payload
 
-    API-->>FE: 201 with full ticker data
-    FE-->>User: Ticker appears on dashboard with live price
+    GW->>DB: INSERT INTO watchlist userId, symbol, metadata
+    DB-->>GW: 201 Created
+
+    GW->>PROM: Increment watchlist_add_total counter
+    GW-->>FE: 201 with symbol, price, change, volume
+    FE-->>User: Ticker card appears on dashboard with live data
 ```
 
 ---
@@ -141,24 +150,42 @@ sequenceDiagram
 ## CI/CD Pipeline
 
 ```mermaid
-flowchart LR
-    PUSH[Push to main branch] --> GHA[GitHub Actions Trigger]
+flowchart TD
+    DEV([Developer pushes to main])
+    DEV --> GHA[GitHub Actions Workflow Triggered]
 
     GHA --> BE_JOB[Backend Job]
     GHA --> FE_JOB[Frontend Job]
 
-    BE_JOB --> BE_INSTALL[npm install]
-    BE_INSTALL --> BE_TEST[Run test suite]
-    BE_TEST --> BE_BUILD[Build Docker image]
-    BE_BUILD --> BE_DEPLOY[Deploy backend container]
+    subgraph BE_PIPELINE [Backend Pipeline]
+        direction TB
+        BE1[Checkout code]
+        BE2[npm ci - install dependencies]
+        BE3[Run ticker validation tests]
+        BE4[Build Docker image]
+        BE5[Push image to registry]
+        BE6[SSH deploy to server - docker compose pull and up]
+        BE1 --> BE2 --> BE3 --> BE4 --> BE5 --> BE6
+    end
 
-    FE_JOB --> FE_INSTALL[npm install]
-    FE_INSTALL --> FE_LINT[ESLint check]
-    FE_LINT --> FE_BUILD[Vite production build]
-    FE_BUILD --> FE_VERCEL[Deploy to Vercel]
+    subgraph FE_PIPELINE [Frontend Pipeline]
+        direction TB
+        FE1[Checkout code]
+        FE2[npm ci - install dependencies]
+        FE3[ESLint static analysis]
+        FE4[Vite production build]
+        FE5[Deploy to Vercel Edge CDN]
+        FE1 --> FE2 --> FE3 --> FE4 --> FE5
+    end
 
-    BE_DEPLOY --> DONE([Production live])
-    FE_VERCEL --> DONE
+    BE_JOB --> BE_PIPELINE
+    FE_JOB --> FE_PIPELINE
+
+    BE3 -->|Test failure| FAIL([Pipeline blocked - merge prevented])
+    FE3 -->|Lint failure| FAIL
+
+    BE6 --> LIVE([Production live - both services updated])
+    FE5 --> LIVE
 ```
 
 ---

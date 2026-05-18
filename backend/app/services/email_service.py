@@ -11,7 +11,9 @@ class EmailService:
     def send(self, to_email: str, subject: str, body: str) -> None:
         settings = get_settings()
         if not settings.smtp_username or not settings.smtp_password:
-            logger.info("SMTP disabled; email skipped to %s with subject %s", to_email, subject)
+            logger.info(
+                "SMTP disabled; email skipped to %s with subject %s", to_email, subject
+            )
             return
         message = EmailMessage()
         message["From"] = settings.email_from

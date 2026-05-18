@@ -16,11 +16,19 @@ class NewsService:
         symbol = normalize_ticker(ticker)
         key = get_settings().news_api_key
         if not key:
-            logger.info("NEWS_API_KEY missing; returning empty news feed for %s", symbol)
+            logger.info(
+                "NEWS_API_KEY missing; returning empty news feed for %s", symbol
+            )
             return []
         response = requests.get(
             "https://newsapi.org/v2/everything",
-            params={"q": symbol, "language": "en", "sortBy": "publishedAt", "pageSize": 20, "apiKey": key},
+            params={
+                "q": symbol,
+                "language": "en",
+                "sortBy": "publishedAt",
+                "pageSize": 20,
+                "apiKey": key,
+            },
             timeout=15,
         )
         response.raise_for_status()
@@ -33,7 +41,9 @@ class NewsService:
                     title=title,
                     url=article["url"],
                     source=article["source"]["name"],
-                    published_at=datetime.fromisoformat(article["publishedAt"].replace("Z", "+00:00")),
+                    published_at=datetime.fromisoformat(
+                        article["publishedAt"].replace("Z", "+00:00")
+                    ),
                     sentiment=float(TextBlob(title).sentiment.polarity),
                 )
             )

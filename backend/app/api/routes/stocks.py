@@ -5,7 +5,9 @@ from app.api.dependencies import current_user, redis_client
 from app.schemas.stock import StockProfile, StockQuote
 from app.services.stock_service import StockService
 
-router = APIRouter(prefix="/stocks", tags=["stocks"], dependencies=[Depends(current_user)])
+router = APIRouter(
+    prefix="/stocks", tags=["stocks"], dependencies=[Depends(current_user)]
+)
 
 
 @router.get("/{ticker}/quote", response_model=StockQuote)

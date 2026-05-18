@@ -4,7 +4,9 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-celery_app = Celery("vaultlink", broker=settings.resolved_redis_url, backend=settings.resolved_redis_url)
+celery_app = Celery(
+    "vaultlink", broker=settings.resolved_redis_url, backend=settings.resolved_redis_url
+)
 celery_app.conf.beat_schedule = {
     "check-alerts-every-five-minutes": {
         "task": "app.tasks.alert_worker.check_alerts",

@@ -37,9 +37,19 @@ class StockService:
             name=info.get("shortName") or symbol,
             sector=info.get("sector"),
             market_cap=info.get("marketCap"),
-            pe_ratio=Decimal(str(info["trailingPE"])) if info.get("trailingPE") else None,
-            fifty_two_week_high=Decimal(str(info["fiftyTwoWeekHigh"])) if info.get("fiftyTwoWeekHigh") else None,
-            fifty_two_week_low=Decimal(str(info["fiftyTwoWeekLow"])) if info.get("fiftyTwoWeekLow") else None,
+            pe_ratio=(
+                Decimal(str(info["trailingPE"])) if info.get("trailingPE") else None
+            ),
+            fifty_two_week_high=(
+                Decimal(str(info["fiftyTwoWeekHigh"]))
+                if info.get("fiftyTwoWeekHigh")
+                else None
+            ),
+            fifty_two_week_low=(
+                Decimal(str(info["fiftyTwoWeekLow"]))
+                if info.get("fiftyTwoWeekLow")
+                else None
+            ),
             next_earnings_date=None,
         )
 
@@ -47,9 +57,20 @@ class StockService:
         try:
             fast = yf.Ticker(ticker).fast_info
             price = Decimal(str(fast["last_price"]))
-            previous = Decimal(str(fast["previous_close"])) if fast.get("previous_close") else None
+            previous = (
+                Decimal(str(fast["previous_close"]))
+                if fast.get("previous_close")
+                else None
+            )
             change = ((price - previous) / previous * 100) if previous else None
-            return StockQuote(ticker=ticker, price=price, previous_close=previous, change_percent=change, source="yfinance", captured_at=datetime.now(UTC))
+            return StockQuote(
+                ticker=ticker,
+                price=price,
+                previous_close=previous,
+                change_percent=change,
+                source="yfinance",
+                captured_at=datetime.now(UTC),
+            )
         except Exception:
             logger.exception("yfinance quote failed for %s", ticker)
             return None

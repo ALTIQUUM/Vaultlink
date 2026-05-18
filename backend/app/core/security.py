@@ -18,7 +18,9 @@ def verify_password(password: str, hashed_password: str) -> bool:
     return pwd_context.verify(password, hashed_password)
 
 
-def create_token(subject: str, token_type: str, expires_delta: timedelta, session_id: str) -> str:
+def create_token(
+    subject: str, token_type: str, expires_delta: timedelta, session_id: str
+) -> str:
     settings = get_settings()
     now = datetime.now(UTC)
     payload = {
@@ -29,13 +31,17 @@ def create_token(subject: str, token_type: str, expires_delta: timedelta, sessio
         "jti": str(uuid4()),
         "sid": session_id,
     }
-    return jwt.encode(payload, settings.resolved_jwt_secret, algorithm=settings.jwt_algorithm)
+    return jwt.encode(
+        payload, settings.resolved_jwt_secret, algorithm=settings.jwt_algorithm
+    )
 
 
 def decode_token(token: str) -> dict[str, object]:
     settings = get_settings()
     try:
-        return jwt.decode(token, settings.resolved_jwt_secret, algorithms=[settings.jwt_algorithm])
+        return jwt.decode(
+            token, settings.resolved_jwt_secret, algorithms=[settings.jwt_algorithm]
+        )
     except JWTError as exc:
         raise ValueError("Invalid or expired token") from exc
 

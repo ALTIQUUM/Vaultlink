@@ -19,7 +19,12 @@ class AlertService:
         self.stocks = stocks
 
     def create(self, user_id: int, data: AlertCreate) -> Alert:
-        alert = Alert(user_id=user_id, ticker=data.ticker, kind=data.kind, threshold=data.threshold)
+        alert = Alert(
+            user_id=user_id,
+            ticker=data.ticker,
+            kind=data.kind,
+            threshold=data.threshold,
+        )
         self.db.add(alert)
         self.db.commit()
         self.db.refresh(alert)
@@ -32,14 +37,31 @@ class AlertService:
             quote = self.stocks.quote(alert.ticker)
             hit = (
                 (alert.kind == AlertKind.PRICE_ABOVE and quote.price >= alert.threshold)
-                or (alert.kind == AlertKind.PRICE_BELOW and quote.price <= alert.threshold)
-                or (alert.kind == AlertKind.PERCENT_CHANGE and quote.change_percent is not None and abs(quote.change_percent) >= alert.threshold)
+                or (
+                    alert.kind == AlertKind.PRICE_BELOW
+                    and quote.price <= alert.threshold
+                )
+                or (
+                    alert.kind == AlertKind.PERCENT_CHANGE
+                    and quote.change_percent is not None
+                    and abs(quote.change_percent) >= alert.threshold
+                )
             )
             if hit:
                 alert.last_triggered_at = datetime.now(UTC)
-                notification = Notification(user_id=alert.user_id, title=f"{alert.ticker} alert triggered", body=f"{alert.kind.value} threshold {alert.threshold} matched at {quote.price}.")
+                body = (
+                    f"{alert.kind.value} threshold {alert.threshold} "
+                    f"matched at {quote.price}."
+                )
+                notification = Notification(
+                    user_id=alert.user_id,
+                    title=f"{alert.ticker} alert triggered",
+                    body=body,
+                )
                 self.db.add(notification)
-                EmailService().send(alert.user.email, notification.title, notification.body)
+                EmailService().send(
+                    alert.user.email, notification.title, notification.body
+                )
                 triggered += 1
         self.db.commit()
         logger.info("Alert scan triggered %s alerts", triggered)

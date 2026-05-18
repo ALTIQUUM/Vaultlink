@@ -13,7 +13,9 @@ class ScreenerFilter:
 
 
 class ScreenerService:
-    def screen(self, tickers: list[str], filters: ScreenerFilter) -> list[dict[str, object]]:
+    def screen(
+        self, tickers: list[str], filters: ScreenerFilter
+    ) -> list[dict[str, object]]:
         rows: list[dict[str, object]] = []
         for ticker in tickers:
             info = yf.Ticker(ticker).get_info()
@@ -27,9 +29,16 @@ class ScreenerService:
             }
             if filters.sector and row["sector"] != filters.sector:
                 continue
-            if filters.min_market_cap and int(row["market_cap"]) < filters.min_market_cap:
+            if (
+                filters.min_market_cap
+                and int(row["market_cap"]) < filters.min_market_cap
+            ):
                 continue
-            if filters.max_pe_ratio and row["pe_ratio"] and Decimal(str(row["pe_ratio"])) > filters.max_pe_ratio:
+            if (
+                filters.max_pe_ratio
+                and row["pe_ratio"]
+                and Decimal(str(row["pe_ratio"])) > filters.max_pe_ratio
+            ):
                 continue
             if filters.min_volume and int(row["volume"]) < filters.min_volume:
                 continue

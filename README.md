@@ -479,4 +479,4 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-*ALTIQUUM / Vaultlink — Built in silence. Found in history !*
+*ALTIQUUM / Vaultlink — Built in silence. Found in history ®*
